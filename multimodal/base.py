@@ -37,7 +37,6 @@ class MMModel(PreTrainedModel):
             nn.ReLU(),
             nn.Dropout(config.drop_out),
             nn.Linear(config.hiden_dim, config.num_labels),
-            nn.ReLU()
         )
 
     def forward(self, input_id, attention_mask, token_type_ids, image):
@@ -63,5 +62,11 @@ if __name__ == '__main__':
     from sklearn.metrics import accuracy_score, precision_recall_fscore_support
     train_dataset = TrainDataset('../datasets')
     test_dataset = TestDataset('../datasets')
-    trainer = MultiModalTrainer(mm_model, train_dataset, test_dataset = test_dataset, compute_metrics=accuracy_score, batch_size=32, num_epochs=20)
+    trainer = MultiModalTrainer(mm_model, 
+                                train_dataset, 
+                                test_dataset = test_dataset, 
+                                compute_metrics=accuracy_score, 
+                                batch_size=64, 
+                                num_epochs=20,
+                                eval_per_epoch = True)
     trainer.train()

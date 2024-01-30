@@ -1,3 +1,6 @@
+# implement of paper "Learning Language-guided Adaptive Hyper-modality Representation for Multimodal Sentiment Analysis"
+# published in EMNLP 2023
+# https://arxiv.org/abs/2310.05804
 import torch
 import torch.nn as nn
 from .base import MMModel, MultiModalConfig

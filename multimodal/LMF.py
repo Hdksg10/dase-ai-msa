@@ -1,3 +1,6 @@
+# implement of paper "Efficient Low-rank Multimodal Fusion with Modality-Specific Factors"
+# https://arxiv.org/abs/1806.00064
+
 import torch
 import torch.nn as nn
 from torch.nn.init import xavier_normal_

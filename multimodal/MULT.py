@@ -1,3 +1,6 @@
+# implement of paper "Multimodal Transformer for Unaligned Multimodal Language Sequences"
+# https://arxiv.org/abs/1906.00295
+
 import torch
 import torch.nn as nn
 from .base import MMModel, MultiModalConfig
