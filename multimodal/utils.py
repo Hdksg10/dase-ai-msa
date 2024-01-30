@@ -7,8 +7,8 @@ from torch.optim import AdamW
 from transformers import get_scheduler   
 import tqdm
 from .processor import MultiModalProcessor
-import numpy as np
 PROCESSOR = MultiModalProcessor()
+
 def collate_fn(batch):
     labels = []
     texts = []
@@ -27,7 +27,6 @@ def collate_fn(batch):
     batch = {'input_ids': input_ids, 'attention_mask': attention_mask, 'token_type_ids': token_type_ids, 'images': images, 'labels': labels}
     return batch
 
-# test fine-tuning scripts, unimodal semantic analysis
 class MultiModalTrainer:
     def __init__(self,
                  model: nn.Module,
@@ -37,6 +36,7 @@ class MultiModalTrainer:
                  compute_metrics = None, 
                  batch_size = 1,
                  num_epochs = 3,
+                 modals = 'ti',
                  **kwargs
                  ):
         self.model = model
@@ -49,7 +49,7 @@ class MultiModalTrainer:
             train_dataset, eval_dataset = random_split(train_dataset, [train_size, eval_size])
         lr = kwargs.pop('lr', 1e-4)  
         self.eval_per_epoch = kwargs.pop('eval_per_epoch', False)
-        torch.manual_seed(3307) # 3307 is all you need  
+        torch.manual_seed(3407) # 3407 is all you need :)
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.test_dataset = test_dataset
@@ -66,18 +66,28 @@ class MultiModalTrainer:
                                 num_training_steps=self.num_training_steps
                             )
         self.compute_metrics = compute_metrics
+        if modals == 'ti' or modals == 't' or modals == 'i':
+            self.modals = modals
+        else:
+            raise ValueError("modals must be 'ti', 't' or 'i'")
         pass
 
     def train(self):
-        # init progress bar
-        # progress_bar = tqdm(range(self.num_training_steps))
         device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.model.train()
         self.model.to(device)
         criteration = nn.CrossEntropyLoss()
+        empty_text = ""
+        empty_image = torch.zeros((3, 224, 224))
+        
+        empty_batch = PROCESSOR(empty_text, empty_image, padding=True, truncation=True, return_tensors="pt")
+        empty_text_ids = empty_batch['input_ids']
+        empty_attention_mask = empty_batch['attention_mask']
+        empty_token_type_ids = empty_batch['token_type_ids']
+        empty_images = empty_batch['pixel_values']
+        
         
         for epoch in range(self.num_epochs):
-            # progress_bar = tqdm(self.train_loader, desc=f"epoch {epoch}/{self.num_epochs}")
             loss_sum = 0
             for _, batch in tqdm.tqdm(enumerate(self.train_loader), desc = f"epoch {epoch}/{self.num_epochs}", total=len(self.train_loader)):
                 input_ids = batch['input_ids']
@@ -85,6 +95,12 @@ class MultiModalTrainer:
                 token_type_ids = batch['token_type_ids']
                 images = batch['images']
                 labels = batch['labels']
+                if self.modals == 't':
+                    images = empty_images.expand_as(images)
+                elif self.modals == 'i':
+                    input_ids = empty_text_ids.repeat(input_ids.shape[0], 1)
+                    attention_mask = empty_attention_mask.repeat(attention_mask.shape[0], 1)
+                    token_type_ids = empty_token_type_ids.repeat(token_type_ids.shape[0], 1)
                 # to device
                 input_ids = input_ids.to(device)
                 attention_mask = attention_mask.to(device)
@@ -102,7 +118,6 @@ class MultiModalTrainer:
                 self.lr_scheduler.step()
                 self.optimizer.zero_grad()
             print(f"epoch {epoch}/{self.num_epochs}: loss: {loss_sum / len(self.train_loader)}")
-            # progress_bar.update(1)
             if self.eval_per_epoch and self.compute_metrics is not None:
                 # eval model on eval_dataset
                 metrics = self.eval()
@@ -169,7 +184,6 @@ class MultiModalTrainer:
                 labels_pred = torch.concat((labels_pred, torch.argmax(output, dim=1)))
                 progress_bar.update(1)
             # compute metrics
-            # print(labels_true, labels_pred)
             labels_pred = labels_pred.cpu().numpy()
             return labels_pred
 

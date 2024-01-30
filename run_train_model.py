@@ -13,6 +13,7 @@ parser.add_argument('--epochs', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--eval_per_epoch', action='store_true')
+parser.add_argument('--modals', type=str, default='ti')
 
 args = parser.parse_args()
 
@@ -38,5 +39,7 @@ trainer = MultiModalTrainer(model,
                             compute_metrics=accuracy_score, 
                             batch_size=args.batch_size, 
                             num_epochs=args.epochs, 
-                            eval_per_epoch=args.eval_per_epoch)
+                            eval_per_epoch=args.eval_per_epoch,
+                            lr=args.lr,
+                            modals=args.modals)
 trainer.train()

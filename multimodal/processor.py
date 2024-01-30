@@ -34,14 +34,14 @@ class MultiModalProcessor(ProcessorMixin):
         
     def batch_decode(self, *args, **kwargs):
         """
-        This method forwards all its arguments to CLIPTokenizerFast's [`~PreTrainedTokenizer.batch_decode`]. Please
+        This method forwards all its arguments to BertTokenizerFast's [`~PreTrainedTokenizer.batch_decode`]. Please
         refer to the docstring of this method for more information.
         """
         return self.tokenizer.batch_decode(*args, **kwargs)
 
     def decode(self, *args, **kwargs):
         """
-        This method forwards all its arguments to CLIPTokenizerFast's [`~PreTrainedTokenizer.decode`]. Please refer to
+        This method forwards all its arguments to BertTokenizerFast's [`~PreTrainedTokenizer.decode`]. Please refer to
         the docstring of this method for more information.
         """
         return self.tokenizer.decode(*args, **kwargs)
@@ -60,6 +60,13 @@ if __name__ == '__main__':
     test_dataset = TestDataset('../datasets')
     for data in train_dataset:
         print(data)
+        image = data['image']
+        print(image.shape)
         output = processor(data['text'], data['image'], padding=True, truncation=True, return_tensors="pt")
         print(output)
         break
+    
+    empty_text = ""
+    empty_image = torch.zeros((3, 224, 224))
+    output = processor(empty_text, empty_image, padding=True, truncation=True, return_tensors="pt")
+    print(output)
