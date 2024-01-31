@@ -40,7 +40,7 @@ pip install -r requirements.txt
     |-- TransformerEncoder.py # 基于PyTorch的CrossModal Transformer和Transformer的实现（用于MULT和ALMT）
     |-- utils.py # 一些工具方法，包括训练，评估和预测   
 |-- results # 所有实验结果
-|-- predict.csv # 在测试集test_without_label.txt上的标签预测结果
+|-- predict.txt # 在测试集test_without_label.txt上的标签预测结果
 |-- readme.md # 本文件
 |-- requirements.txt # 依赖
 |-- run_train_model.py # 运行模型代码的主文件
