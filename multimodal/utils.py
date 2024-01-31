@@ -13,18 +13,20 @@ def collate_fn(batch):
     labels = []
     texts = []
     images = []
+    guids = []
     for data in batch:
         labels.append(data['label'])
         texts.append(data['text'])
         images.append(data['image'])
+        guids.append(data['guid'])
     output = PROCESSOR(texts, images, padding=True, truncation=True, return_tensors="pt")
     input_ids = output['input_ids']
     attention_mask = output['attention_mask']
     token_type_ids = output['token_type_ids']
     images = output['pixel_values']
-    
+    guids = torch.tensor(guids)
     labels = torch.tensor(labels)
-    batch = {'input_ids': input_ids, 'attention_mask': attention_mask, 'token_type_ids': token_type_ids, 'images': images, 'labels': labels}
+    batch = {'input_ids': input_ids, 'attention_mask': attention_mask, 'token_type_ids': token_type_ids, 'images': images, 'labels': labels, 'guids': guids}
     return batch
 
 class MultiModalTrainer:
@@ -42,7 +44,7 @@ class MultiModalTrainer:
         self.model = model
         
         if eval_dataset is None:
-            eval_ratio = kwargs.pop('eval_ratio', 0.1)
+            eval_ratio = kwargs.pop('eval_ratio', 0.2)
             # split train_dataset into train and eval
             eval_size = int(len(train_dataset) * eval_ratio)
             train_size = len(train_dataset) - eval_size
@@ -55,7 +57,7 @@ class MultiModalTrainer:
         self.test_dataset = test_dataset
         self.train_loader = DataLoader(self.train_dataset, batch_size, shuffle=True, collate_fn=collate_fn)
         self.eval_loader = DataLoader(self.eval_dataset, batch_size, shuffle=True, collate_fn=collate_fn)
-        self.test_loader = DataLoader(self.test_dataset, batch_size, shuffle=True, collate_fn=collate_fn)
+        self.test_loader = DataLoader(self.test_dataset, 1, shuffle=False, collate_fn=collate_fn)
         self.num_epochs = num_epochs
         self.num_training_steps = self.num_epochs * len(self.train_loader)
         self.optimizer = AdamW(self.model.parameters(), lr)
@@ -158,34 +160,50 @@ class MultiModalTrainer:
             # print(labels_true, labels_pred)
             labels_true = labels_true.cpu().numpy()
             labels_pred = labels_pred.cpu().numpy()
-            metrics = self.compute_metrics(labels_true, labels_pred)
+            metrics = []
+            for compute_metric in self.compute_metrics:
+                try:
+                    metric = compute_metric(labels_true, labels_pred, average='micro')
+                except TypeError:
+                    metric = compute_metric(labels_true, labels_pred)
+                metrics.append(metric)
             return metrics
         pass
     def predict(self):
         device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.model.eval()
         self.model.to(device)
-        progress_bar = tqdm(self.test_loader)
+        progress_bar = tqdm.tqdm(self.eval_loader, leave = False, desc="predict")
+        predicts = []
         with torch.no_grad():
-            labels_pred = torch.tensor([]).to(device)
+            # labels_pred = torch.tensor([]).to(device)
             for batch in self.test_loader:
                 input_ids = batch['input_ids']
                 attention_mask = batch['attention_mask']
                 token_type_ids = batch['token_type_ids']
                 images = batch['images']
+                guids = batch['guids']
                 # to device
                 input_ids = input_ids.to(device)
                 attention_mask = attention_mask.to(device)
                 token_type_ids = token_type_ids.to(device)
                 images = images.to(device)
-                labels = labels.to(device)
                 # forward
                 output = self.model(input_ids, attention_mask, token_type_ids, images)
-                labels_pred = torch.concat((labels_pred, torch.argmax(output, dim=1)))
+                predict_label = torch.argmax(output, dim=1)
+                label = predict_label[0].item()
+                tag = 'null'
+                if label == 0:
+                    tag = 'positive'
+                elif label == 1:
+                    tag = 'neutral'
+                elif label == 2:
+                    tag = 'negative'
+                predicts.append({'guid': guids[0].item(), 'tag': tag})
                 progress_bar.update(1)
             # compute metrics
-            labels_pred = labels_pred.cpu().numpy()
-            return labels_pred
+            # labels_pred = labels_pred.cpu().numpy()
+            return predicts
 
 if __name__ == '__main__':
     pass
